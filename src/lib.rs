@@ -53,9 +53,9 @@ impl DbConnection {
     fn load_words_in_list(&self, list: &Vec<String>) -> PyResult<Vec<Word>> {
         // let conn = Connection::open(self.path.borrow())?;
 
-        let mut conn: Connection;
+        let conn: Connection;
 
-        if let Ok(c) = Connection::open(self.path.borrow()) {
+        if let Ok(c) = Connection::open(&self.path) {
             conn = c;
         } else {
             return Err(exceptions::PyFileNotFoundError::new_err(format!("could not find file at {}", self.path)))
@@ -72,19 +72,27 @@ impl DbConnection {
             return Err(exceptions::PyBaseException::new_err("Failed to construct SQL statement"));
         }
 
-        let word_iter = stmt.query_map([], |row| {
-            Ok(Word {
-                id: row.get(0)?,
-                word: row.get(1)?
-            })
+        let word_res_iter;
+
+        if let Ok(iter) = stmt.query_map([], |row| {
+            Ok(
+                Word {
+                    id: row.get(0)?,
+                    word: row.get(0)?
+                })
+        }) {
+            word_res_iter = iter;
+        } else {
+            return Err(exceptions::PyBaseException::new_err("Failed to bind empty params to SQL insert statement"));
+        }
+
+        let word_iter = word_res_iter.map(|word_res| {
+            word_res.unwrap()
         });
 
         // conn.close()?;
 
-        match conn.close() {
-            Err(_) => return Err(exceptions::PyBaseException::new_err("Failed to close SQL exception")),
-            _ => ()
-        }
+        conn.close();
 
         Ok(word_iter.collect())
     }
@@ -94,14 +102,14 @@ impl DbConnection {
             return Ok(())
         }
 
-        let filtered: Vec<String> = raw_list.iter().filter(|s| {
+        let filtered: Vec<&String> = raw_list.iter().filter(|s| {
             word_list.iter().any(|w| w.word == s.deref().deref())
         }).collect();
 
         // let conn = Connection::open(self.path.borrow())?;
-        let mut conn;
+        let conn;
 
-        if let Ok(c) = Connection::open(self.path.borrow()) {
+        if let Ok(c) = Connection::open(&self.path) {
             conn = c;
         } else {
             return Err(exceptions::PyFileNotFoundError::new_err(format!("Failed to open database at path {}", self.path)))
@@ -124,9 +132,9 @@ impl DbConnection {
 
     fn insert_w2i_data(&self, words: &Vec<Word>, item_id: usize) -> PyResult<()> {
         // let conn = Connection::open(self.path.borrow())?;
-        let mut conn;
+        let conn;
 
-        if let Ok(c) = Connection::open(self.path.borrow()) {
+        if let Ok(c) = Connection::open(&self.path) {
             conn = c;
         } else {
             return Err(exceptions::PyFileNotFoundError::new_err(format!("Failed to open database at path {}", self.path)))
@@ -153,8 +161,8 @@ impl DbConnection {
 }
 
 fn list_to_sql_str(list: &Vec<String>) -> String {
-    let s: String = list.iter().map(|&s| format!("'{}', ", s)).collect();
-    s
+    let string: String = list.iter().map(|s| format!("'{}', ", s)).collect();
+    string
 }
 
 fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> String {
@@ -165,7 +173,7 @@ fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> String {
     collector
 }
 
-fn new_word_list_to_sql(list: Vec<String>) -> String {
+fn new_word_list_to_sql(list: Vec<&String>) -> String {
     let mut collector: String = String::new();
     for w in list {
         collector = format!("{} {}", collector, format!("({}),", w));
