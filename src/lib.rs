@@ -26,14 +26,27 @@ struct Word {
 struct DbConnection {
     #[pyo3(get)]
     path: String,
+    conn: Connection,
 }
 
 #[pymethods]
 impl DbConnection {
 
     #[new]
-    fn new(path: String) -> Self {
-        DbConnection { path }
+    fn new(path: String) -> PyResult<Self> {
+
+        let conn;
+
+        if let Ok(c) = Connection::open(&path) {
+            conn = c;
+        } else {
+            return Err(exceptions::PyFileNotFoundError::new_err(format!("Could not open database at path {}", path)));
+        }
+
+        Ok(DbConnection {
+            path,
+            conn,
+        })
     }
 
 
@@ -51,22 +64,12 @@ impl DbConnection {
 
 impl DbConnection {
     fn load_words_in_list(&self, list: &Vec<String>) -> PyResult<Vec<Word>> {
-        // let conn = Connection::open(self.path.borrow())?;
-
-        let conn: Connection;
-
-        if let Ok(c) = Connection::open(&self.path) {
-            conn = c;
-        } else {
-            return Err(exceptions::PyFileNotFoundError::new_err(format!("could not find file at {}", self.path)))
-        }
 
         let word_list = format!("({})", list_to_sql_str(list));
 
-        // let mut stmt = conn.prepare(format!("SELECT id, word FROM rss_feed_word WHERE word IN {}", word_list).as_str())?;
         let mut stmt;
 
-        if let Ok(s) = conn.prepare(format!("SELECT id, word FROM rss_feed_word WHERE word IN {}", word_list).as_str()) {
+        if let Ok(s) = self.conn.prepare(format!("SELECT id, word FROM rss_feed_word WHERE word IN {}", word_list).as_str()) {
             stmt = s;
         } else {
             return Err(exceptions::PyBaseException::new_err("Failed to construct SQL statement"));
@@ -90,10 +93,6 @@ impl DbConnection {
             word_res.unwrap()
         });
 
-        // conn.close()?;
-
-        conn.close();
-
         Ok(word_iter.collect())
     }
 
@@ -106,18 +105,9 @@ impl DbConnection {
             word_list.iter().any(|w| w.word == s.deref().deref())
         }).collect();
 
-        // let conn = Connection::open(self.path.borrow())?;
-        let conn;
-
-        if let Ok(c) = Connection::open(&self.path) {
-            conn = c;
-        } else {
-            return Err(exceptions::PyFileNotFoundError::new_err(format!("Failed to open database at path {}", self.path)))
-        }
-
         let vals = new_word_list_to_sql(filtered);
 
-        match conn.execute(
+        match self.conn.execute(
             format!("INSERT INTO rss_feed_word (word) VALUES {}", vals).as_str(),
             params![]
         ) {
@@ -125,35 +115,20 @@ impl DbConnection {
             Err(_) => return Err(exceptions::PyBaseException::new_err("Failed to execute SQL INSERT statement"))
         }
 
-        conn.close();
-
         Ok(())
     }
 
     fn insert_w2i_data(&self, words: &Vec<Word>, item_id: usize) -> PyResult<()> {
-        // let conn = Connection::open(self.path.borrow())?;
-        let conn;
-
-        if let Ok(c) = Connection::open(&self.path) {
-            conn = c;
-        } else {
-            return Err(exceptions::PyFileNotFoundError::new_err(format!("Failed to open database at path {}", self.path)))
-        }
 
 
         let values = word_list_to_sql_values(words.borrow(), item_id.borrow());
 
-        match conn.execute(
+        match self.conn.execute(
             format!("INSERT INTO rss_feed_word_rss_items (word_id, rssitem_id) VALUES {}", values).as_str(),
             params![]
         ) {
             Ok(_) => (),
             Err(_) => return Err(exceptions::PyBaseException::new_err("Failed to execute SQL INSERT statement for words to items relation"))
-        }
-
-        match conn.close() {
-            Ok(()) => (),
-            _ => return Err(exceptions::PyBaseException::new_err("Failed to close db connection for inserting word to item details"))
         }
 
         Ok(())
