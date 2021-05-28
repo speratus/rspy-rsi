@@ -127,7 +127,13 @@ impl DbConnection {
     fn insert_w2i_data(&self, words: &Vec<Word>, item_id: usize) -> PyResult<()> {
 
 
-        let values = word_list_to_sql_values(words, &item_id);
+        let values;
+
+        if let Some(v) = word_list_to_sql_values(words, &item_id) {
+            values = v;
+        } else {
+            return Ok(())
+        }
 
         let insert = format!("INSERT INTO rss_feed_word_rss_items (word_id, rssitem_id) VALUES {}", values);
 
