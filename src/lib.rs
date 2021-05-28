@@ -6,7 +6,7 @@ use pyo3::exceptions;
 use std::ops::Deref;
 
 #[pymodule]
-fn rspy_rsi(py: Python, m: &PyModule) -> PyResult<()> {
+fn rspy_rsi(_py: Python, m: &PyModule) -> PyResult<()> {
 
     m.add_class::<Word>()?;
     m.add_class::<DbConnection>()?;
