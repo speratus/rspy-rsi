@@ -107,18 +107,40 @@ impl DbConnection {
             return Ok(())
         }
 
+        let word_mapped: Vec<String> = word_list.iter().map(|w| w.as_string()).collect();
+
         let filtered: Vec<&String> = raw_list.iter().filter(|s| {
-            word_list.iter().any(|w| w.word == s.deref().deref())
+            !word_mapped.contains(s)
         }).collect();
+
+        let filtered_len = filtered.len();
+
+        if filtered_len <= 0 {
+            return Ok(())
+        }
 
         let vals = new_word_list_to_sql(filtered);
 
+        let sql_string = format!("INSERT INTO rss_feed_word (word) VALUES {}", vals);
+
         match self.conn.execute(
-            format!("INSERT INTO rss_feed_word (word) VALUES {}", vals).as_str(),
+            &sql_string,
             params![]
         ) {
             Ok(_) => (),
-            Err(_) => return Err(exceptions::PyBaseException::new_err("Failed to execute SQL INSERT statement"))
+            Err(_) => return Err(
+                exceptions::PyBaseException::new_err(
+                    format!(
+                        "Failed to execute SQL INSERT statement. SQL was: {}. There were {} words \
+                        in the list. The method was passed a list of length {}. The raw list was \
+                        length {}.",
+                        sql_string,
+                        filtered_len,
+                        word_list.len(),
+                        raw_list.len()
+                    )
+                )
+            )
         }
 
         Ok(())
