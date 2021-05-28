@@ -181,12 +181,17 @@ fn list_to_sql_str(list: &Vec<String>) -> String {
     String::from(&string[..new_len])
 }
 
-fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> String {
+fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> Option<String> {
     let mut collector: String = String::new();
     for w in list {
         collector = format!("{} {}", collector, format!("({}, {}),", w.id, rss_id));
     }
-    collector
+
+    if collector.len() <= 0 {
+        return None;
+    }
+
+    Some(collector)
 }
 
 fn new_word_list_to_sql(list: Vec<&String>) -> String {
