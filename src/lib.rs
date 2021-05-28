@@ -69,10 +69,12 @@ impl DbConnection {
 
         let mut stmt;
 
-        if let Ok(s) = self.conn.prepare(format!("SELECT id, word FROM rss_feed_word WHERE word IN {}", word_list).as_str()) {
+        let str_stmt = format!("SELECT id, word FROM rss_feed_word WHERE word IN {}", word_list);
+
+        if let Ok(s) = self.conn.prepare(&str_stmt) {
             stmt = s;
         } else {
-            return Err(exceptions::PyBaseException::new_err("Failed to construct SQL statement"));
+            return Err(exceptions::PyBaseException::new_err(format!("Failed to construct SQL statement, SQL was: {}", str_stmt)));
         }
 
         let word_res_iter;
@@ -121,14 +123,18 @@ impl DbConnection {
     fn insert_w2i_data(&self, words: &Vec<Word>, item_id: usize) -> PyResult<()> {
 
 
-        let values = word_list_to_sql_values(words.borrow(), item_id.borrow());
+        let values = word_list_to_sql_values(words, &item_id);
+
+        let insert = format!("INSERT INTO rss_feed_word_rss_items (word_id, rssitem_id) VALUES {}", values);
 
         match self.conn.execute(
-            format!("INSERT INTO rss_feed_word_rss_items (word_id, rssitem_id) VALUES {}", values).as_str(),
+            &insert,
             params![]
         ) {
             Ok(_) => (),
-            Err(_) => return Err(exceptions::PyBaseException::new_err("Failed to execute SQL INSERT statement for words to items relation"))
+            Err(msg) => return Err(exceptions::PyBaseException::new_err(
+                format!("Failed to execute SQL INSERT statement for words to items relation. Message is: {}. SQL was: {}", msg, insert)
+            ))
         }
 
         Ok(())
@@ -137,7 +143,10 @@ impl DbConnection {
 
 fn list_to_sql_str(list: &Vec<String>) -> String {
     let string: String = list.iter().map(|s| format!("'{}', ", s)).collect();
-    string
+    let len = string.len();
+    let new_len = len.saturating_sub(", ".len());
+
+    String::from(&string[..new_len])
 }
 
 fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> String {
