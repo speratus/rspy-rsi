@@ -1,9 +1,7 @@
 use pyo3::prelude::*;
-use std::borrow::Borrow;
 
 use rusqlite::{params, Connection};
 use pyo3::exceptions;
-use std::ops::Deref;
 
 #[pymodule]
 fn rspy_rsi(_py: Python, m: &PyModule) -> PyResult<()> {
@@ -20,6 +18,12 @@ struct Word {
     word: String,
     #[pyo3(get)]
     id: usize,
+}
+
+impl Word {
+    fn as_string(&self) -> String {
+        self.word.clone()
+    }
 }
 
 #[pyclass]
