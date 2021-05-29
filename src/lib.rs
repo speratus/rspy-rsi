@@ -102,9 +102,9 @@ impl DbConnection {
         Ok(word_iter.collect())
     }
 
-    fn create_missing_words(&self, raw_list: &Vec<String>, word_list: &Vec<Word>) -> PyResult<()> {
+    fn create_missing_words(&self, raw_list: &Vec<String>, word_list: &Vec<Word>) -> PyResult<Option<Vec<Word>>> {
         if word_list.len() == raw_list.len() {
-            return Ok(())
+            return Ok(None)
         }
 
         let word_mapped: Vec<String> = word_list.iter().map(|w| w.as_string()).collect();
@@ -116,10 +116,10 @@ impl DbConnection {
         let filtered_len = filtered.len();
 
         if filtered_len <= 0 {
-            return Ok(())
+            return Ok(None)
         }
 
-        let vals = new_word_list_to_sql(filtered);
+        let vals = new_word_list_to_sql(&filtered);
 
         let sql_string = format!("INSERT INTO rss_feed_word (word) VALUES {}", vals);
 
@@ -143,7 +143,15 @@ impl DbConnection {
             )
         }
 
-        Ok(())
+        let derefed_strings: Vec<String> = filtered.iter().map(|s| (**s).clone()).collect();
+
+        Ok(
+            Some(
+                self.load_words_in_list(
+                    &derefed_strings
+                ).unwrap()
+            )
+        )
     }
 
     fn insert_w2i_data(&self, words: &Vec<Word>, item_id: usize) -> PyResult<()> {
