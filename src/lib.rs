@@ -175,10 +175,11 @@ impl DbConnection {
 
 fn list_to_sql_str(list: &Vec<String>) -> String {
     let string: String = list.iter().map(|s| format!("'{}', ", s)).collect();
-    let len = string.len();
-    let new_len = len.saturating_sub(", ".len());
-
-    String::from(&string[..new_len])
+    // let len = string.len();
+    // let new_len = len.saturating_sub(", ".len());
+    //
+    // String::from(&string[..new_len])
+    remove_trailing_str(string, ", ")
 }
 
 fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> Option<String> {
@@ -191,7 +192,7 @@ fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> Option<String> {
         return None;
     }
 
-    Some(collector)
+    Some(remove_trailing_str(collector, ","))
 }
 
 fn new_word_list_to_sql(list: Vec<&String>) -> String {
@@ -200,8 +201,16 @@ fn new_word_list_to_sql(list: Vec<&String>) -> String {
         collector = format!("{} {}", collector, format!("('{}'),", w));
     }
     // collector
-    let len = collector.len();
-    let new_len = len.saturating_sub(",".len());
+    // let len = collector.len();
+    // let new_len = len.saturating_sub(",".len());
+    //
+    // String::from(&collector[..new_len])
+    remove_trailing_str(collector, ",")
+}
 
-    String::from(&collector[..new_len])
+fn remove_trailing_str(str: String, tail: &str) -> String {
+    let len = str.len();
+    let new_len = len.saturating_sub(tail.len());
+
+    return String::from(&str[..new_len])
 }
