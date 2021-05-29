@@ -56,10 +56,10 @@ impl DbConnection {
 
 
     fn build_w2i_data(&self, word_list: Vec<String>, rss_item_id: usize) -> PyResult<()> {
-        let words = self.load_words_in_list(&word_list)?;
+        let mut words = self.load_words_in_list(&word_list)?;
 
-        self.insert_w2i_data(&words, rss_item_id)?;
-        self.create_missing_words(&word_list, &words)?;
+        self.insert_w2i_data(&mut words,&word_list, rss_item_id)?;
+        // self.create_missing_words(&word_list, &words)?;
 
         Ok(())
     }
@@ -154,12 +154,22 @@ impl DbConnection {
         )
     }
 
-    fn insert_w2i_data(&self, words: &Vec<Word>, item_id: usize) -> PyResult<()> {
+    fn insert_w2i_data(&self, words: &mut Vec<Word>, raw_list: &Vec<String>, item_id: usize) -> PyResult<()> {
 
+        let new_words = self.create_missing_words(raw_list, words)?;
+
+        // let mut total_words = (*words).clone();
+
+        if let Some(word_list) = new_words {
+            for word in word_list {
+                // total_words.push(word);
+                words.push(word);
+            }
+        }
 
         let values;
 
-        if let Some(v) = word_list_to_sql_values(words, &item_id) {
+        if let Some(v) = word_list_to_sql_values(&words, &item_id) {
             values = v;
         } else {
             return Ok(())
