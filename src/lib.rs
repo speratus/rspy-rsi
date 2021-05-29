@@ -87,7 +87,7 @@ impl DbConnection {
             Ok(
                 Word {
                     id: row.get(0)?,
-                    word: row.get(0)?
+                    word: row.get(1)?
                 })
         }) {
             word_res_iter = iter;
@@ -213,7 +213,7 @@ fn word_list_to_sql_values(list: &Vec<Word>, rss_id: &usize) -> Option<String> {
     Some(remove_trailing_str(collector, ","))
 }
 
-fn new_word_list_to_sql(list: Vec<&String>) -> String {
+fn new_word_list_to_sql(list: &Vec<&String>) -> String {
     let mut collector: String = String::new();
     for w in list {
         collector = format!("{} {}", collector, format!("('{}'),", w));
