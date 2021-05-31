@@ -175,7 +175,7 @@ impl DbConnection {
             return Ok(())
         }
 
-        let insert = format!("INSERT INTO rss_feed_word_rss_items (word_id, rssitem_id) VALUES {}", values);
+        let insert = format!("INSERT INTO rss_feed_wordrecord (word_id, rss_item_id) VALUES {}", values);
 
         match self.conn.execute(
             &insert,

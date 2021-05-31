@@ -300,7 +300,7 @@ dependencies = [
 
 [[package]]
 name = "rspy-rsi"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "pyo3",
  "rusqlite",
